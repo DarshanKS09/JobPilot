@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt, { type JwtPayload } from "jsonwebtoken";
+import jwt, { type JwtPayload, type SignOptions } from "jsonwebtoken";
 
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
@@ -20,7 +20,9 @@ export async function comparePassword(password: string, hashedPassword: string) 
 }
 
 export function signToken(payload: AuthUser) {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
+  return jwt.sign(payload, env.jwtSecret, {
+    expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
+  });
 }
 
 export function verifyToken(token: string) {

@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import { env } from "@/lib/env";
 
 declare global {
-  // eslint-disable-next-line no-var
   var mongooseConnectionPromise: Promise<typeof mongoose> | undefined;
 }
 
