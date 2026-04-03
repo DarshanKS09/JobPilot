@@ -18,9 +18,11 @@
   let lastUrl = window.location.href;
   let lastDetectedAt = 0;
   let lastDetectedFingerprint = "";
+  let hasDetected = false;
   let observerStarted = false;
   let loopsStarted = false;
   let activeModalTimer = null;
+  let detectionIntervalId = null;
 
   console.log("JobPilot content script loaded on:", window.location.href);
 
@@ -213,6 +215,7 @@
     modal.appendChild(urlValue);
     modal.appendChild(actions);
     document.body.appendChild(modal);
+    logInfo("Detection modal created", job);
 
     activeModalTimer = window.setTimeout(() => {
       logInfo("Detection modal auto-dismissed", { url: job.url });
@@ -221,50 +224,39 @@
   }
 
   function checkForApplication() {
-    if (!document.body) {
+    if (!document.body || hasDetected) {
       return;
     }
 
     const text = getPageText();
-    console.log("Checking page content...");
 
     if (!hasApplicationMatch(text)) {
       return;
     }
 
-    logInfo("Keyword matched", {
-      submitted: text.includes("submitted"),
-      sent: text.includes("sent"),
-      received: text.includes("received"),
-      applied: text.includes("applied"),
-      url: window.location.href,
-    });
-
     if (!canTrigger()) {
-      logInfo("Detection skipped due to debounce");
       return;
     }
 
     const job = buildJob();
 
     if (!job.title || !job.url) {
-      logInfo("Detection skipped because job data is incomplete", job);
       return;
     }
 
     const fingerprint = buildFingerprint(job);
 
     if (fingerprint === lastDetectedFingerprint) {
-      logInfo("Detection skipped because page was already handled", {
-        fingerprint,
-      });
+      hasDetected = true;
       return;
     }
 
     lastDetectedAt = Date.now();
     lastDetectedFingerprint = fingerprint;
+    hasDetected = true;
 
     console.log("Application detected!");
+    showJobModal(job);
 
     try {
       chrome.runtime.sendMessage({
@@ -276,7 +268,6 @@
         type: "JOB_DETECTED",
         job,
       });
-      showJobModal(job);
     } catch (error) {
       logInfo("Failed to send message", {
         error: error instanceof Error ? error.message : String(error),
@@ -309,12 +300,21 @@
 
     loopsStarted = true;
 
-    window.setInterval(checkForApplication, FALLBACK_CHECK_INTERVAL_MS);
+    detectionIntervalId = window.setInterval(() => {
+      if (hasDetected) {
+        window.clearInterval(detectionIntervalId);
+        detectionIntervalId = null;
+        return;
+      }
+
+      checkForApplication();
+    }, FALLBACK_CHECK_INTERVAL_MS);
 
     window.setInterval(() => {
       if (window.location.href !== lastUrl) {
         const previousUrl = lastUrl;
         lastUrl = window.location.href;
+        hasDetected = false;
         lastDetectedFingerprint = "";
         removeJobModal();
 
@@ -322,6 +322,18 @@
           previousUrl,
           currentUrl: lastUrl,
         });
+
+        if (!detectionIntervalId) {
+          detectionIntervalId = window.setInterval(() => {
+            if (hasDetected) {
+              window.clearInterval(detectionIntervalId);
+              detectionIntervalId = null;
+              return;
+            }
+
+            checkForApplication();
+          }, FALLBACK_CHECK_INTERVAL_MS);
+        }
 
         checkForApplication();
       }
