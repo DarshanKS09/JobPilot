@@ -200,6 +200,7 @@ export function DashboardClient() {
           <button
             type="button"
             onClick={handleLogout}
+            suppressHydrationWarning
             className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
           >
             Logout
@@ -221,6 +222,7 @@ export function DashboardClient() {
               <button
                 type="button"
                 onClick={() => void handleCopyToken()}
+                suppressHydrationWarning
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
               >
                 Copy Token
