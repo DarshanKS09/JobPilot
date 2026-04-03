@@ -146,6 +146,44 @@ export function DashboardClient() {
     }
   }
 
+  async function handleEditJob(
+    jobId: string,
+    values: {
+      role: string;
+      company: string;
+      jobLink: string;
+      appliedDate: string;
+      notes: string;
+      status: JobStatus;
+    },
+  ) {
+    if (!token) {
+      return;
+    }
+
+    setBusyJobId(jobId);
+    setError("");
+
+    try {
+      const response = await apiRequest<JobResponse>(`/api/jobs/${jobId}`, {
+        method: "PATCH",
+        token,
+        body: values,
+      });
+
+      startTransition(() => {
+        setJobs((currentJobs) =>
+          currentJobs.map((job) => (job._id === jobId ? response.job : job)),
+        );
+      });
+    } catch (updateError) {
+      handleProtectedError(updateError);
+      throw updateError;
+    } finally {
+      setBusyJobId(null);
+    }
+  }
+
   async function handleDelete(jobId: string) {
     if (!token) {
       return;
@@ -254,6 +292,7 @@ export function DashboardClient() {
             <JobList
               jobs={jobs}
               onStatusChange={handleStatusChange}
+              onEdit={handleEditJob}
               onDelete={handleDelete}
               busyJobId={isRefreshing ? busyJobId : busyJobId}
             />
