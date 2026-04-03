@@ -48,11 +48,28 @@ function normalizeUrl(url) {
   }
 }
 
+function hostnameToName(url) {
+  try {
+    return new URL(url)
+      .hostname
+      .replace(/^www\./i, "")
+      .split(".")[0]
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  } catch {
+    return "";
+  }
+}
+
 function normalizeJob(job) {
+  const normalizedUrl = normalizeUrl(job?.url || "");
+  const normalizedCompany =
+    (job?.company || "").trim() || hostnameToName(normalizedUrl) || "Unknown Company";
+
   return {
     title: (job?.title || "").trim(),
-    company: (job?.company || "").trim(),
-    url: normalizeUrl(job?.url || ""),
+    company: normalizedCompany,
+    url: normalizedUrl,
     detectedAt: new Date().toISOString(),
   };
 }
@@ -132,6 +149,10 @@ async function saveJobToApi(jobPayload) {
       [STORAGE_KEYS.lastSavedUrl]: job.url,
     });
     await clearLatestJob();
+    console.log("Job saved successfully", {
+      url: job.url,
+      duplicate: response.status === 409,
+    });
     return { ok: true, duplicate: response.status === 409 };
   }
 

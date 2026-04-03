@@ -48,6 +48,14 @@
     return normalizeText(content || element?.textContent || "");
   }
 
+  function hostnameToName(hostname) {
+    return hostname
+      .replace(/^www\./i, "")
+      .split(".")[0]
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
   function guessCompany() {
     for (const selector of COMPANY_SELECTORS) {
       const company = getSelectorText(selector);
@@ -57,7 +65,7 @@
       }
     }
 
-    return "";
+    return hostnameToName(window.location.hostname) || "Unknown Company";
   }
 
   function buildJob() {
@@ -165,6 +173,12 @@
     actions.style.display = "flex";
     actions.style.gap = "10px";
 
+    const statusText = document.createElement("div");
+    statusText.style.fontSize = "12px";
+    statusText.style.marginTop = "10px";
+    statusText.style.minHeight = "16px";
+    statusText.style.color = "#6b7280";
+
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.textContent = "Save Job";
@@ -192,13 +206,47 @@
     ignoreButton.style.cursor = "pointer";
 
     saveButton.addEventListener("click", () => {
+      saveButton.disabled = true;
+      ignoreButton.disabled = true;
+      saveButton.textContent = "Saving...";
+      saveButton.style.opacity = "0.7";
+      ignoreButton.style.opacity = "0.7";
+      statusText.textContent = "Saving job...";
+
       chrome.runtime.sendMessage({
         type: "SAVE_JOB",
         payload: job,
+      }, (response) => {
+        if (response?.ok) {
+          statusText.textContent = response.duplicate
+            ? "Job already saved."
+            : "Job saved.";
+          statusText.style.color = "#166534";
+          saveButton.textContent = response.duplicate ? "Already Saved" : "Saved";
+          logInfo("Save completed from detection modal", {
+            ...job,
+            result: response.duplicate ? "duplicate" : "saved",
+          });
+          window.setTimeout(() => {
+            removeJobModal();
+          }, 1000);
+          return;
+        }
+
+        saveButton.disabled = false;
+        ignoreButton.disabled = false;
+        saveButton.textContent = "Save Job";
+        saveButton.style.opacity = "1";
+        ignoreButton.style.opacity = "1";
+        statusText.textContent = response?.error || "Failed to save job.";
+        statusText.style.color = "#b91c1c";
+        logInfo("Save failed from detection modal", {
+          ...job,
+          error: response?.error || "Unknown save error",
+        });
       });
 
       logInfo("Save requested from detection modal", job);
-      removeJobModal();
     });
 
     ignoreButton.addEventListener("click", () => {
@@ -214,6 +262,7 @@
     modal.appendChild(urlLabel);
     modal.appendChild(urlValue);
     modal.appendChild(actions);
+    modal.appendChild(statusText);
     document.body.appendChild(modal);
     logInfo("Detection modal created", job);
 

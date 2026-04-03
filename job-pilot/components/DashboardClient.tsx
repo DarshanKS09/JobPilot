@@ -17,6 +17,8 @@ type JobResponse = {
   job: Job;
 };
 
+const DASHBOARD_REFRESH_INTERVAL_MS = 3000;
+
 export function DashboardClient() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -79,12 +81,14 @@ export function DashboardClient() {
       void loadJobs(token);
     }
 
-    const pollTimer = window.setInterval(refreshJobs, 15000);
+    const pollTimer = window.setInterval(refreshJobs, DASHBOARD_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refreshJobs);
+    document.addEventListener("visibilitychange", refreshJobs);
 
     return () => {
       window.clearInterval(pollTimer);
       window.removeEventListener("focus", refreshJobs);
+      document.removeEventListener("visibilitychange", refreshJobs);
     };
   }, [loadJobs, token]);
 
