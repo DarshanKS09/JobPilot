@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobPilot</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .section {
+        margin-bottom: 14px;
+        padding: 12px;
+        border: 1px solid #dbe3f0;
+        border-radius: 10px;
+        background: #ffffff;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+
+      .job-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .job-company {
+        color: #475569;
+        margin-bottom: 6px;
+      }
+
+      .job-url {
+        color: #2563eb;
+        font-size: 12px;
+        word-break: break-word;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      button {
+        flex: 1;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      #saveSettings {
+        width: 100%;
+        background: #0f172a;
+        color: #ffffff;
+      }
+
+      #confirmButton {
+        background: #16a34a;
+        color: #ffffff;
+      }
+
+      #discardButton {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      #status {
+        min-height: 18px;
+        font-size: 12px;
+        color: #475569;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>JobPilot</h1>
+
+    <div class="section">
+      <label for="tokenInput">JWT Token</label>
+      <input id="tokenInput" type="password" placeholder="Paste your JWT token" />
+
+      <label for="apiBaseUrlInput">API Base URL</label>
+      <input id="apiBaseUrlInput" type="url" placeholder="http://localhost:3000" />
+
+      <button id="saveSettings" type="button">Save Settings</button>
+    </div>
+
+    <div class="section">
+      <div id="jobCard">
+        <div class="job-title">No job detected yet</div>
+        <div class="job-company">Visit a submission confirmation page to detect one.</div>
+        <div class="job-url"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="confirmButton" type="button">YES</button>
+      <button id="discardButton" type="button">NO</button>
+    </div>
+
+    <p id="status"></p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
