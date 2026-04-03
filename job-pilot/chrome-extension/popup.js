@@ -93,6 +93,7 @@ async function loadState() {
   tokenInput.value = token;
   apiBaseUrlInput.value = apiUrl;
   renderJob(latestJob);
+  console.log("Popup loaded job:", latestJob);
 
   logInfo("Popup loaded", {
     hasToken: Boolean(token),

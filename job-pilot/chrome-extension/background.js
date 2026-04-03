@@ -43,6 +43,7 @@ async function storeDetectedJob(job) {
     [STORAGE_KEYS.legacyLatestJob]: latestJob,
   });
 
+  console.log("Job stored successfully");
   logInfo("Job stored in extension", latestJob);
 }
 
@@ -72,6 +73,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "JOB_DETECTED") {
+    console.log("Received job:", message.data);
+
     storeDetectedJob(message.data)
       .then(() => sendResponse({ ok: true }))
       .catch((error) => {

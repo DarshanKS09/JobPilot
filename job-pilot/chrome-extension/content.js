@@ -1,5 +1,6 @@
 (function () {
   const DETECTION_DEBOUNCE_MS = 5000;
+  const FALLBACK_CHECK_INTERVAL_MS = 2000;
   const URL_CHECK_INTERVAL_MS = 1000;
   const COMPANY_SELECTORS = [
     'meta[property="og:site_name"]',
@@ -11,9 +12,32 @@
   ];
 
   let lastUrl = window.location.href;
-  let lastDetected = 0;
+  let lastDetectedAt = 0;
   let lastDetectedFingerprint = "";
   let observerStarted = false;
+  let loopsStarted = false;
+
+  console.log("JobPilot content script loaded on:", window.location.href);
+
+  function addIndicator() {
+    if (!document.body || document.getElementById("jobpilot-debug-indicator")) {
+      return;
+    }
+
+    const indicator = document.createElement("div");
+    indicator.id = "jobpilot-debug-indicator";
+    indicator.innerText = "JobPilot Active";
+    indicator.style.position = "fixed";
+    indicator.style.bottom = "10px";
+    indicator.style.right = "10px";
+    indicator.style.background = "black";
+    indicator.style.color = "white";
+    indicator.style.padding = "5px";
+    indicator.style.zIndex = "9999";
+    indicator.style.fontSize = "12px";
+
+    document.body.appendChild(indicator);
+  }
 
   function logInfo(message, meta = {}) {
     console.log(`[JobPilot] ${message}`, meta);
@@ -24,7 +48,7 @@
   }
 
   function canTrigger() {
-    return Date.now() - lastDetected > DETECTION_DEBOUNCE_MS;
+    return Date.now() - lastDetectedAt > DETECTION_DEBOUNCE_MS;
   }
 
   function getPageText() {
@@ -51,7 +75,9 @@
 
   function buildJob() {
     return {
-      title: normalizeText(document.querySelector("h1")?.innerText) || normalizeText(document.title),
+      title:
+        normalizeText(document.querySelector("h1")?.innerText) ||
+        normalizeText(document.title),
       company: guessCompany(),
       url: window.location.href,
     };
@@ -62,35 +88,35 @@
   }
 
   function hasApplicationMatch(text) {
-    const hasApplication = text.includes("application");
-    const hasOutcomeWord =
-      text.includes("submitted") ||
-      text.includes("sent") ||
-      text.includes("received") ||
-      text.includes("complete");
-
-    return hasApplication && hasOutcomeWord;
+    return (
+      text.includes("application") &&
+      (text.includes("submitted") ||
+        text.includes("sent") ||
+        text.includes("received") ||
+        text.includes("applied"))
+    );
   }
 
   function checkForApplication() {
-    logInfo("Detection runs", { url: window.location.href });
-
     if (!document.body) {
       return;
     }
 
+    addIndicator();
+
     const text = getPageText();
+    console.log("Checking page content...");
 
     if (!hasApplicationMatch(text)) {
       return;
     }
 
     logInfo("Keyword matched", {
-      hasApplication: text.includes("application"),
       submitted: text.includes("submitted"),
       sent: text.includes("sent"),
       received: text.includes("received"),
-      complete: text.includes("complete"),
+      applied: text.includes("applied"),
+      url: window.location.href,
     });
 
     if (!canTrigger()) {
@@ -99,6 +125,12 @@
     }
 
     const job = buildJob();
+
+    if (!job.title || !job.url) {
+      logInfo("Detection skipped because job data is incomplete", job);
+      return;
+    }
+
     const fingerprint = buildFingerprint(job);
 
     if (fingerprint === lastDetectedFingerprint) {
@@ -108,10 +140,10 @@
       return;
     }
 
-    lastDetected = Date.now();
+    lastDetectedAt = Date.now();
     lastDetectedFingerprint = fingerprint;
 
-    logInfo("Application detected!", job);
+    console.log("Application detected!");
 
     try {
       chrome.runtime.sendMessage({
@@ -119,7 +151,10 @@
         data: job,
       });
 
-      logInfo("Message sent", { type: "JOB_DETECTED", job });
+      logInfo("Message sent", {
+        type: "JOB_DETECTED",
+        job,
+      });
     } catch (error) {
       logInfo("Failed to send message", {
         error: error instanceof Error ? error.message : String(error),
@@ -145,32 +180,41 @@
     logInfo("Observer started", { target: "document.body" });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      () => {
-        startObserver();
+  function startDetectionLoops() {
+    if (loopsStarted) {
+      return;
+    }
+
+    loopsStarted = true;
+
+    window.setInterval(checkForApplication, FALLBACK_CHECK_INTERVAL_MS);
+
+    window.setInterval(() => {
+      if (window.location.href !== lastUrl) {
+        const previousUrl = lastUrl;
+        lastUrl = window.location.href;
+        lastDetectedFingerprint = "";
+
+        logInfo("URL changed", {
+          previousUrl,
+          currentUrl: lastUrl,
+        });
+
         checkForApplication();
-      },
-      { once: true },
-    );
-  } else {
+      }
+    }, URL_CHECK_INTERVAL_MS);
+  }
+
+  function initialize() {
+    addIndicator();
     startObserver();
+    startDetectionLoops();
     checkForApplication();
   }
 
-  window.setInterval(() => {
-    if (window.location.href !== lastUrl) {
-      const previousUrl = lastUrl;
-      lastUrl = window.location.href;
-      lastDetectedFingerprint = "";
-
-      logInfo("URL changed", {
-        previousUrl,
-        currentUrl: lastUrl,
-      });
-
-      checkForApplication();
-    }
-  }, URL_CHECK_INTERVAL_MS);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialize, { once: true });
+  } else {
+    initialize();
+  }
 })();
