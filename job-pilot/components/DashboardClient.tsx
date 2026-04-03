@@ -158,7 +158,7 @@ export function DashboardClient() {
     },
   ) {
     if (!token) {
-      return;
+      return false;
     }
 
     setBusyJobId(jobId);
@@ -191,9 +191,10 @@ export function DashboardClient() {
           currentJobs.map((job) => (job._id === jobId ? response.job : job)),
         );
       });
+      return true;
     } catch (updateError) {
       handleProtectedError(updateError);
-      throw updateError;
+      return false;
     } finally {
       setBusyJobId(null);
     }

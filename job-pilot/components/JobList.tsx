@@ -17,7 +17,7 @@ type JobListProps = {
       notes: string;
       status: JobStatus;
     },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   onDelete: (jobId: string) => Promise<void>;
   busyJobId?: string | null;
 };
@@ -35,7 +35,7 @@ type JobCardProps = {
       notes: string;
       status: JobStatus;
     },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   onDelete: (jobId: string) => Promise<void>;
   busyJobId?: string | null;
 };
@@ -65,6 +65,7 @@ function JobCard({
   const [appliedDate, setAppliedDate] = useState(initialAppliedDate);
   const [notes, setNotes] = useState(job.notes || "");
   const [status, setStatus] = useState<JobStatus>(job.status);
+  const [editError, setEditError] = useState("");
 
   function resetEditState() {
     setRole(job.role);
@@ -73,10 +74,13 @@ function JobCard({
     setAppliedDate(initialAppliedDate);
     setNotes(job.notes || "");
     setStatus(job.status);
+    setEditError("");
   }
 
   async function handleSave() {
-    await onEdit(job._id, {
+    setEditError("");
+
+    const didSave = await onEdit(job._id, {
       role,
       company,
       jobLink,
@@ -84,7 +88,13 @@ function JobCard({
       notes,
       status,
     });
-    setIsEditing(false);
+
+    if (didSave) {
+      setIsEditing(false);
+      return;
+    }
+
+    setEditError("Unable to save changes. Please check the values and try again.");
   }
 
   return (
@@ -135,6 +145,12 @@ function JobCard({
             className="min-h-24 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
             placeholder="Notes"
           />
+
+          {editError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {editError}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap gap-3">
             <button

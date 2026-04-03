@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { parseJsonBody, validateJobUpdateInput, validateObjectId } from "@/lib/validation";
 import { Job } from "@/models/Job";
+import { Types } from "mongoose";
 
 type RouteContext = {
   params: Promise<{
@@ -27,13 +28,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const { id } = await context.params;
     validateObjectId(id);
+    const jobObjectId = new Types.ObjectId(id);
 
     const body = await parseJsonBody(request);
     const updates = validateJobUpdateInput(body);
 
     if (updates.normalizedJobLink) {
       const existingJob = await Job.exists({
-        _id: { $ne: id },
+        _id: { $ne: jobObjectId },
         userId: authUser.userId,
         normalizedJobLink: updates.normalizedJobLink,
       });
