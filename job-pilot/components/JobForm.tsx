@@ -45,6 +45,7 @@ export function JobForm({ onSubmit }: JobFormProps) {
         <input
           value={role}
           onChange={(event) => setRole(event.target.value)}
+          suppressHydrationWarning
           className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
           placeholder="Role"
           required
@@ -52,6 +53,7 @@ export function JobForm({ onSubmit }: JobFormProps) {
         <input
           value={company}
           onChange={(event) => setCompany(event.target.value)}
+          suppressHydrationWarning
           className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
           placeholder="Company"
           required
@@ -59,6 +61,7 @@ export function JobForm({ onSubmit }: JobFormProps) {
         <input
           value={jobLink}
           onChange={(event) => setJobLink(event.target.value)}
+          suppressHydrationWarning
           className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
           placeholder="https://company.com/job"
           required
