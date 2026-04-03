@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   legacyLatestJob: "latestDetectedJob",
   apiUrl: "apiUrl",
   legacyApiUrl: "apiBaseUrl",
+  lastSavedUrl: "lastSavedJobUrl",
 };
 
 const DEFAULT_API_URL = "http://localhost:3000";
@@ -47,6 +48,74 @@ async function storeDetectedJob(job) {
   logInfo("Job stored in extension", latestJob);
 }
 
+async function clearLatestJob() {
+  await chrome.storage.local.remove([
+    STORAGE_KEYS.latestJob,
+    STORAGE_KEYS.legacyLatestJob,
+  ]);
+}
+
+async function saveJobToApi(jobPayload) {
+  const stored = await chrome.storage.local.get([
+    STORAGE_KEYS.token,
+    STORAGE_KEYS.legacyToken,
+    STORAGE_KEYS.apiUrl,
+    STORAGE_KEYS.legacyApiUrl,
+    STORAGE_KEYS.lastSavedUrl,
+  ]);
+
+  const token = stored[STORAGE_KEYS.token] || stored[STORAGE_KEYS.legacyToken] || "";
+  const apiUrl =
+    stored[STORAGE_KEYS.apiUrl] || stored[STORAGE_KEYS.legacyApiUrl] || DEFAULT_API_URL;
+  const job = normalizeJob(jobPayload);
+
+  if (!token) {
+    return { ok: false, error: "Missing token." };
+  }
+
+  if (!job.title || !job.company || !job.url) {
+    return { ok: false, error: "Missing job details." };
+  }
+
+  if (stored[STORAGE_KEYS.lastSavedUrl] === job.url) {
+    return { ok: true, duplicate: true };
+  }
+
+  const response = await fetch(`${apiUrl.replace(/\/+$/, "")}/api/jobs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      role: job.title,
+      company: job.company,
+      jobLink: job.url,
+    }),
+  });
+
+  let responseBody = null;
+  try {
+    responseBody = await response.json();
+  } catch {
+    responseBody = null;
+  }
+
+  if (response.ok || response.status === 409) {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.lastSavedUrl]: job.url,
+    });
+    await clearLatestJob();
+    return { ok: true, duplicate: response.status === 409 };
+  }
+
+  if (response.status === 401) {
+    return { ok: false, error: "Invalid token." };
+  }
+
+  return { ok: false, error: responseBody?.error || "Failed to save job." };
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.local.get([
     STORAGE_KEYS.token,
@@ -82,6 +151,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error: error instanceof Error ? error.message : String(error),
         });
         sendResponse({ ok: false });
+      });
+    return true;
+  }
+
+  if (message?.type === "SAVE_JOB") {
+    const jobPayload = message.payload || message.data;
+    console.log("Saving detected job:", jobPayload);
+
+    saveJobToApi(jobPayload)
+      .then((result) => {
+        logInfo("Save job result", result);
+        sendResponse(result);
+      })
+      .catch((error) => {
+        logInfo("Failed to save detected job", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        sendResponse({ ok: false, error: "Failed to save job." });
       });
     return true;
   }
