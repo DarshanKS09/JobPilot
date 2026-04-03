@@ -7,15 +7,17 @@
   const COMPANY_SELECTORS = [
     'meta[property="og:site_name"]',
     'meta[name="application-name"]',
-    '[data-company]',
+    "[data-company]",
     '[data-testid*="company"]',
     '[class*="company"]',
     '[id*="company"]',
   ];
   const MAX_TEXT_LENGTH = 15000;
+  const DETECTION_DEBOUNCE_MS = 5000;
 
   let lastUrl = window.location.href;
   let lastFingerprint = "";
+  let lastDetectionAt = 0;
   let scanTimer = null;
 
   function logInfo(message, meta = {}) {
@@ -31,9 +33,9 @@
     return normalizeText(text).toLowerCase().slice(0, MAX_TEXT_LENGTH);
   }
 
-  function pageLooksLikeSubmission() {
+  function findMatchedKeyword() {
     const text = getPageText();
-    return DETECTION_PHRASES.some((phrase) => text.includes(phrase));
+    return DETECTION_PHRASES.find((phrase) => text.includes(phrase)) || "";
   }
 
   function hostnameToName(hostname) {
@@ -105,7 +107,20 @@
   }
 
   function runDetection() {
-    if (!pageLooksLikeSubmission()) {
+    logInfo("Detection started", { url: window.location.href });
+
+    const matchedKeyword = findMatchedKeyword();
+    if (!matchedKeyword) {
+      return;
+    }
+
+    logInfo("Keyword found", { keyword: matchedKeyword });
+
+    const now = Date.now();
+    if (now - lastDetectionAt < DETECTION_DEBOUNCE_MS) {
+      logInfo("Detection skipped due to debounce", {
+        remainingMs: DETECTION_DEBOUNCE_MS - (now - lastDetectionAt),
+      });
       return;
     }
 
@@ -113,15 +128,13 @@
     const fingerprint = buildFingerprint(job);
 
     if (fingerprint === lastFingerprint) {
+      logInfo("Detection skipped because job is unchanged", { fingerprint });
       return;
     }
 
     lastFingerprint = fingerprint;
-    logInfo("Detection triggered", {
-      title: job.title,
-      company: job.company,
-      url: job.url,
-    });
+    lastDetectionAt = now;
+    logInfo("Job extracted", job);
 
     try {
       chrome.runtime.sendMessage({
@@ -129,28 +142,39 @@
         data: job,
       });
     } catch (error) {
-      void error;
+      logInfo("Failed to send detected job", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  function scheduleDetection() {
+  function scheduleDetection(reason = "unknown") {
     window.clearTimeout(scanTimer);
-    scanTimer = window.setTimeout(runDetection, 800);
+    scanTimer = window.setTimeout(() => {
+      logInfo("Scheduled detection running", { reason });
+      runDetection();
+    }, 300);
   }
 
-  function handleUrlChange() {
+  function handleUrlChange(source = "unknown") {
     if (window.location.href === lastUrl) {
       return;
     }
 
+    const previousUrl = lastUrl;
     lastUrl = window.location.href;
     lastFingerprint = "";
-    scheduleDetection();
+    logInfo("URL change detected", {
+      source,
+      previousUrl,
+      currentUrl: lastUrl,
+    });
+    scheduleDetection(`url-change:${source}`);
   }
 
   const observer = new MutationObserver(() => {
-    handleUrlChange();
-    scheduleDetection();
+    handleUrlChange("mutation");
+    scheduleDetection("mutation");
   });
 
   function patchHistoryMethod(methodName) {
@@ -158,16 +182,24 @@
 
     history[methodName] = function () {
       const result = original.apply(this, arguments);
-      handleUrlChange();
-      scheduleDetection();
+      handleUrlChange(methodName);
+      scheduleDetection(`history:${methodName}`);
       return result;
     };
   }
 
   patchHistoryMethod("pushState");
   patchHistoryMethod("replaceState");
-  window.addEventListener("popstate", handleUrlChange);
-  window.addEventListener("hashchange", handleUrlChange);
+
+  window.addEventListener("popstate", () => {
+    handleUrlChange("popstate");
+    scheduleDetection("popstate");
+  });
+
+  window.addEventListener("hashchange", () => {
+    handleUrlChange("hashchange");
+    scheduleDetection("hashchange");
+  });
 
   if (document.documentElement) {
     observer.observe(document.documentElement, {
@@ -175,7 +207,8 @@
       subtree: true,
       characterData: true,
     });
+    logInfo("MutationObserver is active");
   }
 
-  scheduleDetection();
+  scheduleDetection("initial-load");
 })();
