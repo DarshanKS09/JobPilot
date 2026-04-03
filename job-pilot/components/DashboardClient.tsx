@@ -165,10 +165,25 @@ export function DashboardClient() {
     setError("");
 
     try {
+      const payload: Record<string, unknown> = {
+        role: values.role.trim(),
+        company: values.company.trim(),
+        jobLink: values.jobLink.trim(),
+        status: values.status,
+      };
+
+      if (values.appliedDate) {
+        payload.appliedDate = new Date(`${values.appliedDate}T00:00:00.000Z`).toISOString();
+      }
+
+      if (values.notes.trim()) {
+        payload.notes = values.notes.trim();
+      }
+
       const response = await apiRequest<JobResponse>(`/api/jobs/${jobId}`, {
         method: "PATCH",
         token,
-        body: values,
+        body: payload,
       });
 
       startTransition(() => {
