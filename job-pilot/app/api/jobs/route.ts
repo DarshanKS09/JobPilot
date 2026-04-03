@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
+  normalizeJobLink,
   parseJsonBody,
   validateJobCreateInput,
   validateStatusFilter,
@@ -25,16 +26,26 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const status = validateStatusFilter(url.searchParams.get("status"));
+    const jobLink = url.searchParams.get("jobLink");
+    const normalizedJobLink = jobLink ? normalizeJobLink(jobLink) : undefined;
     const query = {
       userId: authUser.userId,
       ...(status ? { status } : {}),
+      ...(normalizedJobLink ? { normalizedJobLink } : {}),
     };
 
     const jobs = await Job.find(query)
       .sort({ appliedDate: -1, createdAt: -1 })
       .lean();
 
-    return successResponse({ jobs }, 200, corsHeaders);
+    return successResponse(
+      {
+        jobs,
+        exists: Boolean(normalizedJobLink && jobs.length > 0),
+      },
+      200,
+      corsHeaders,
+    );
   } catch (error) {
     return handleApiError(error, corsHeaders);
   }
@@ -53,10 +64,14 @@ export async function POST(request: Request) {
 
     const existingJob = await Job.exists({
       userId: authUser.userId,
-      jobLink: jobInput.jobLink,
+      normalizedJobLink: jobInput.normalizedJobLink,
     });
 
     if (existingJob) {
+      logger.info("Duplicate job prevented", {
+        userId: authUser.userId,
+        normalizedJobLink: jobInput.normalizedJobLink,
+      });
       throw new ApiError(409, "A job with this link already exists");
     }
 

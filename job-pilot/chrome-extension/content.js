@@ -4,11 +4,23 @@
     "thank you for applying",
     "application received",
   ];
-  const MAX_TEXT_LENGTH = 12000;
+  const COMPANY_SELECTORS = [
+    'meta[property="og:site_name"]',
+    'meta[name="application-name"]',
+    '[data-company]',
+    '[data-testid*="company"]',
+    '[class*="company"]',
+    '[id*="company"]',
+  ];
+  const MAX_TEXT_LENGTH = 15000;
 
   let lastUrl = window.location.href;
   let lastFingerprint = "";
   let scanTimer = null;
+
+  function logInfo(message, meta = {}) {
+    console.info(`[JobPilot] ${message}`, meta);
+  }
 
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -32,10 +44,22 @@
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  function getSelectorText(selector) {
+    const element = document.querySelector(selector);
+    const content = element?.getAttribute("content");
+    return normalizeText(content || element?.textContent || "");
+  }
+
   function guessCompany() {
-    const candidates = [
-      document.querySelector('meta[property="og:site_name"]')?.content,
-      document.querySelector('meta[name="application-name"]')?.content,
+    for (const selector of COMPANY_SELECTORS) {
+      const text = getSelectorText(selector);
+
+      if (text && text.length <= 120) {
+        return text;
+      }
+    }
+
+    const fallbackCandidates = [
       document.querySelector("header")?.innerText,
       document.title,
       document.querySelector("h1")?.innerText,
@@ -43,7 +67,7 @@
       .map(normalizeText)
       .filter(Boolean);
 
-    for (const candidate of candidates) {
+    for (const candidate of fallbackCandidates) {
       const parts = candidate
         .split(/[-|:@]/)
         .map(normalizeText)
@@ -56,19 +80,16 @@
       }
     }
 
-    return hostnameToName(window.location.hostname);
+    return hostnameToName(window.location.hostname) || "";
   }
 
   function guessTitle() {
-    const candidates = [
-      document.querySelector("h1")?.innerText,
-      document.title,
-      document.querySelector("h2")?.innerText,
-    ]
-      .map(normalizeText)
-      .filter(Boolean);
+    const h1Text = normalizeText(document.querySelector("h1")?.innerText);
+    if (h1Text) {
+      return h1Text;
+    }
 
-    return candidates[0] || "Job Application";
+    return normalizeText(document.title) || "Job Application";
   }
 
   function buildJobData() {
@@ -83,7 +104,7 @@
     return [job.url, job.title.toLowerCase(), job.company.toLowerCase()].join("|");
   }
 
-  function sendDetection() {
+  function runDetection() {
     if (!pageLooksLikeSubmission()) {
       return;
     }
@@ -96,6 +117,11 @@
     }
 
     lastFingerprint = fingerprint;
+    logInfo("Detection triggered", {
+      title: job.title,
+      company: job.company,
+      url: job.url,
+    });
 
     try {
       chrome.runtime.sendMessage({
@@ -107,9 +133,9 @@
     }
   }
 
-  function scheduleScan() {
+  function scheduleDetection() {
     window.clearTimeout(scanTimer);
-    scanTimer = window.setTimeout(sendDetection, 600);
+    scanTimer = window.setTimeout(runDetection, 800);
   }
 
   function handleUrlChange() {
@@ -118,12 +144,13 @@
     }
 
     lastUrl = window.location.href;
-    scheduleScan();
+    lastFingerprint = "";
+    scheduleDetection();
   }
 
   const observer = new MutationObserver(() => {
     handleUrlChange();
-    scheduleScan();
+    scheduleDetection();
   });
 
   function patchHistoryMethod(methodName) {
@@ -132,7 +159,7 @@
     history[methodName] = function () {
       const result = original.apply(this, arguments);
       handleUrlChange();
-      scheduleScan();
+      scheduleDetection();
       return result;
     };
   }
@@ -150,5 +177,5 @@
     });
   }
 
-  scheduleScan();
+  scheduleDetection();
 })();

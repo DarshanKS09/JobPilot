@@ -6,6 +6,7 @@ export type Job = {
   company: string;
   status: JobStatus;
   jobLink: string;
+  normalizedJobLink?: string;
   appliedDate: string;
   notes?: string;
 };
@@ -14,14 +15,16 @@ type ApiRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   token?: string;
   body?: Record<string, unknown>;
+  signal?: AbortSignal;
 };
 
 export async function apiRequest<T>(
   path: string,
-  { method = "GET", token, body }: ApiRequestOptions = {},
+  { method = "GET", token, body, signal }: ApiRequestOptions = {},
 ) {
   const response = await fetch(path, {
     method,
+    signal,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

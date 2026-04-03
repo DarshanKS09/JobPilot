@@ -6,14 +6,18 @@ const STORAGE_KEYS = {
 
 const tokenInput = document.getElementById("tokenInput");
 const apiBaseUrlInput = document.getElementById("apiBaseUrlInput");
+const titleInput = document.getElementById("titleInput");
+const companyInput = document.getElementById("companyInput");
+const urlInput = document.getElementById("urlInput");
+const urlPreview = document.getElementById("urlPreview");
 const saveSettingsButton = document.getElementById("saveSettings");
 const confirmButton = document.getElementById("confirmButton");
 const discardButton = document.getElementById("discardButton");
-const jobCard = document.getElementById("jobCard");
 const statusText = document.getElementById("status");
 
-function setStatus(message) {
+function setStatus(message, type = "") {
   statusText.textContent = message || "";
+  statusText.className = type;
 }
 
 function setButtonsEnabled(enabled) {
@@ -21,35 +25,33 @@ function setButtonsEnabled(enabled) {
   discardButton.disabled = !enabled;
 }
 
-function createJobLine(className, text) {
-  const element = document.createElement("div");
-  element.className = className;
-  element.textContent = text;
-  return element;
+function formatUrlPreview(url) {
+  if (!url) {
+    return "No job detected yet.";
+  }
+
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`.slice(0, 120);
+  } catch {
+    return url.slice(0, 120);
+  }
+}
+
+function currentJobFromInputs() {
+  return {
+    title: titleInput.value.trim(),
+    company: companyInput.value.trim(),
+    url: urlInput.value.trim(),
+  };
 }
 
 function renderJob(job) {
-  jobCard.replaceChildren();
-
-  if (!job) {
-    jobCard.appendChild(createJobLine("job-title", "No job detected yet"));
-    jobCard.appendChild(
-      createJobLine(
-        "job-company",
-        "Visit a submission confirmation page to detect one.",
-      ),
-    );
-    jobCard.appendChild(createJobLine("job-url", ""));
-    setButtonsEnabled(false);
-    return;
-  }
-
-  jobCard.appendChild(createJobLine("job-title", job.title || "Untitled role"));
-  jobCard.appendChild(
-    createJobLine("job-company", job.company || "Unknown company"),
-  );
-  jobCard.appendChild(createJobLine("job-url", job.url || ""));
-  setButtonsEnabled(true);
+  titleInput.value = job?.title || "";
+  companyInput.value = job?.company || "";
+  urlInput.value = job?.url || "";
+  urlPreview.textContent = formatUrlPreview(job?.url || "");
+  setButtonsEnabled(Boolean(job));
 }
 
 function loadState() {
@@ -61,30 +63,39 @@ function loadState() {
   });
 }
 
+urlInput.addEventListener("input", () => {
+  urlPreview.textContent = formatUrlPreview(urlInput.value.trim());
+});
+
 saveSettingsButton.addEventListener("click", async () => {
   await chrome.storage.local.set({
     [STORAGE_KEYS.token]: tokenInput.value.trim(),
     [STORAGE_KEYS.apiBaseUrl]: apiBaseUrlInput.value.trim() || "http://localhost:3000",
   });
-  setStatus("Settings saved.");
+  setStatus("Settings saved.", "success");
 });
 
 confirmButton.addEventListener("click", () => {
+  const job = currentJobFromInputs();
   setStatus("Saving job...");
-  chrome.runtime.sendMessage({ type: "SAVE_JOB" }, (response) => {
+
+  chrome.runtime.sendMessage({ type: "SAVE_JOB", data: job }, (response) => {
     if (response?.ok) {
-      setStatus(response.duplicate ? "Job already existed." : "Job saved.");
+      setStatus(
+        response.duplicate ? "Job already existed." : "Job saved successfully.",
+        "success",
+      );
       renderJob(null);
       return;
     }
 
-    setStatus(response?.error || "Save failed.");
+    setStatus(response?.error || "Failed to save job.", "error");
   });
 });
 
 discardButton.addEventListener("click", () => {
   chrome.runtime.sendMessage({ type: "DISCARD_JOB" }, () => {
-    setStatus("Discarded.");
+    setStatus("Discarded.", "success");
     renderJob(null);
   });
 });

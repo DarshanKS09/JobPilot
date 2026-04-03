@@ -8,6 +8,7 @@ export type SanitizedJobInput = {
   company: string;
   role: string;
   jobLink: string;
+  normalizedJobLink: string;
   status?: "applied" | "interview" | "rejected";
   appliedDate?: Date;
   notes?: string;
@@ -118,6 +119,10 @@ function sanitizeUrl(value: unknown) {
   }
 }
 
+export function normalizeJobLink(value: string) {
+  return value.trim().toLowerCase();
+}
+
 function sanitizeStatus(value: unknown) {
   if (value === undefined) {
     return undefined;
@@ -179,11 +184,13 @@ export function validateLoginInput(body: UnknownRecord): LoginInput {
 export function validateJobCreateInput(body: UnknownRecord): SanitizedJobInput {
   const roleValue = body.role ?? body.title;
   const jobLinkValue = body.jobLink ?? body.url;
+  const sanitizedJobLink = sanitizeUrl(jobLinkValue);
 
   return {
     company: sanitizeString(body.company, "company", 120),
     role: sanitizeString(roleValue, "role", 160),
-    jobLink: sanitizeUrl(jobLinkValue),
+    jobLink: sanitizedJobLink,
+    normalizedJobLink: normalizeJobLink(sanitizedJobLink),
     status: sanitizeStatus(body.status) ?? "applied",
     appliedDate: sanitizeDate(body.appliedDate) ?? new Date(),
     notes: sanitizeOptionalString(body.notes, "notes", 4000),
@@ -210,7 +217,9 @@ export function validateJobUpdateInput(body: UnknownRecord) {
   }
 
   if (body.jobLink !== undefined || body.url !== undefined) {
-    updates.jobLink = sanitizeUrl(body.jobLink ?? body.url);
+    const sanitizedJobLink = sanitizeUrl(body.jobLink ?? body.url);
+    updates.jobLink = sanitizedJobLink;
+    updates.normalizedJobLink = normalizeJobLink(sanitizedJobLink);
   }
 
   if (body.appliedDate !== undefined) {

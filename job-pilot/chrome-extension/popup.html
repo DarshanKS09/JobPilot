@@ -11,10 +11,10 @@
       }
 
       body {
-        width: 320px;
+        width: 340px;
         margin: 0;
         padding: 16px;
-        background: #f8fafc;
+        background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
         color: #0f172a;
       }
 
@@ -27,11 +27,12 @@
         margin-bottom: 14px;
         padding: 12px;
         border: 1px solid #dbe3f0;
-        border-radius: 10px;
-        background: #ffffff;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
       }
 
-      label {
+      .label {
         display: block;
         margin-bottom: 6px;
         font-size: 12px;
@@ -41,25 +42,16 @@
       input {
         width: 100%;
         box-sizing: border-box;
-        padding: 8px 10px;
+        padding: 9px 10px;
         border: 1px solid #cbd5e1;
         border-radius: 8px;
         margin-bottom: 10px;
+        background: #fff;
       }
 
-      .job-title {
-        font-weight: 700;
-        margin-bottom: 4px;
-      }
-
-      .job-company {
-        color: #475569;
-        margin-bottom: 6px;
-      }
-
-      .job-url {
-        color: #2563eb;
+      .job-preview {
         font-size: 12px;
+        color: #475569;
         word-break: break-word;
       }
 
@@ -70,22 +62,27 @@
 
       button {
         flex: 1;
-        padding: 9px 10px;
+        padding: 10px;
         border: 0;
-        border-radius: 8px;
+        border-radius: 9px;
         cursor: pointer;
         font-weight: 700;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
       }
 
       #saveSettings {
         width: 100%;
         background: #0f172a;
-        color: #ffffff;
+        color: #fff;
       }
 
       #confirmButton {
         background: #16a34a;
-        color: #ffffff;
+        color: #fff;
       }
 
       #discardButton {
@@ -95,8 +92,17 @@
 
       #status {
         min-height: 18px;
+        margin: 10px 0 0;
         font-size: 12px;
         color: #475569;
+      }
+
+      #status.success {
+        color: #166534;
+      }
+
+      #status.error {
+        color: #b91c1c;
       }
     </style>
   </head>
@@ -104,21 +110,26 @@
     <h1>JobPilot</h1>
 
     <div class="section">
-      <label for="tokenInput">JWT Token</label>
+      <label class="label" for="tokenInput">JWT Token</label>
       <input id="tokenInput" type="password" placeholder="Paste your JWT token" />
 
-      <label for="apiBaseUrlInput">API Base URL</label>
+      <label class="label" for="apiBaseUrlInput">API Base URL</label>
       <input id="apiBaseUrlInput" type="url" placeholder="http://localhost:3000" />
 
       <button id="saveSettings" type="button">Save Settings</button>
     </div>
 
     <div class="section">
-      <div id="jobCard">
-        <div class="job-title">No job detected yet</div>
-        <div class="job-company">Visit a submission confirmation page to detect one.</div>
-        <div class="job-url"></div>
-      </div>
+      <label class="label" for="titleInput">Job Title</label>
+      <input id="titleInput" type="text" placeholder="Detected role" />
+
+      <label class="label" for="companyInput">Company</label>
+      <input id="companyInput" type="text" placeholder="Detected company" />
+
+      <label class="label" for="urlInput">Job URL</label>
+      <input id="urlInput" type="url" placeholder="https://company.com/job" />
+
+      <div id="urlPreview" class="job-preview">No job detected yet.</div>
     </div>
 
     <div class="actions">

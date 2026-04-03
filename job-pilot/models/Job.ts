@@ -26,6 +26,13 @@ const jobSchema = new Schema(
       trim: true,
       maxlength: 2048,
     },
+    normalizedJobLink: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      maxlength: 2048,
+    },
     status: {
       type: String,
       enum: ["applied", "interview", "rejected"],
@@ -50,7 +57,7 @@ const jobSchema = new Schema(
 jobSchema.index({ userId: 1, appliedDate: -1 });
 jobSchema.index({ userId: 1, status: 1, appliedDate: -1 });
 jobSchema.index(
-  { userId: 1, jobLink: 1 },
+  { userId: 1, normalizedJobLink: 1 },
   {
     unique: true,
   },
