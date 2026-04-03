@@ -9,9 +9,35 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_API_URL = "http://localhost:3000";
+const injectedTabs = new Map();
 
 function logInfo(message, meta = {}) {
   console.info(`[JobPilot] ${message}`, meta);
+}
+
+async function injectContentScript(tabId, url) {
+  const lastInjectedUrl = injectedTabs.get(tabId);
+
+  if (lastInjectedUrl === url) {
+    logInfo("Skipping duplicate injection", { tabId, url });
+    return;
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"],
+    });
+
+    injectedTabs.set(tabId, url);
+    logInfo("Script injected", { tabId, url });
+  } catch (error) {
+    logInfo("Content script injection skipped", {
+      tabId,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function normalizeUrl(url) {
@@ -138,6 +164,29 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (Object.keys(nextState).length > 0) {
     await chrome.storage.local.set(nextState);
   }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  logInfo("Tab updated", {
+    tabId,
+    status: changeInfo.status || "unknown",
+    url: tab.url || "",
+  });
+
+  if (changeInfo.status === "loading") {
+    injectedTabs.delete(tabId);
+    return;
+  }
+
+  if (changeInfo.status !== "complete" || !tab.url) {
+    return;
+  }
+
+  void injectContentScript(tabId, tab.url);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  injectedTabs.delete(tabId);
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

@@ -1,4 +1,6 @@
 (function () {
+  console.log("🚀 JobPilot Content Script Loaded");
+
   const DETECTION_DEBOUNCE_MS = 5000;
   const FALLBACK_CHECK_INTERVAL_MS = 2000;
   const URL_CHECK_INTERVAL_MS = 1000;
