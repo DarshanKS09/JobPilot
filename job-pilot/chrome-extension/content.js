@@ -6,6 +6,29 @@
   const URL_CHECK_INTERVAL_MS = 1000;
   const MODAL_ID = "jobpilot-detected-application-card";
   const MODAL_DISMISS_MS = 8000;
+  const BLOCKED_HOSTNAMES = [
+    "mail.google.com",
+    "outlook.live.com",
+    "outlook.office.com",
+    "mail.yahoo.com",
+    "mail.proton.me",
+    "mail.protonmail.com",
+  ];
+  const APPLICATION_CONFIRMATION_PATTERNS = [
+    /application submitted/,
+    /application received/,
+    /application sent/,
+    /application has been submitted/,
+    /your application has been submitted/,
+    /we received your application/,
+    /thanks for applying/,
+    /thank you for applying/,
+    /thank you for your application/,
+    /you(?:'ve| have) successfully applied/,
+    /successfully applied/,
+    /application submitted successfully/,
+    /applied successfully/,
+  ];
   const COMPANY_SELECTORS = [
     'meta[property="og:site_name"]',
     'meta[name="application-name"]',
@@ -82,14 +105,27 @@
     return [job.url, job.title.toLowerCase(), job.company.toLowerCase()].join("|");
   }
 
-  function hasApplicationMatch(text) {
+  function isBlockedPage() {
+    const hostname = window.location.hostname.toLowerCase();
+
+    if (BLOCKED_HOSTNAMES.includes(hostname)) {
+      return true;
+    }
+
     return (
-      text.includes("application") &&
-      (text.includes("submitted") ||
-        text.includes("sent") ||
-        text.includes("received") ||
-        text.includes("applied"))
+      hostname.includes("mail.") ||
+      hostname.startsWith("mail") ||
+      window.location.pathname.toLowerCase().includes("/mail")
     );
+  }
+
+  function hasApplicationMatch(text) {
+    const normalizedText = normalizeText(text).toLowerCase();
+    const titleText = normalizeText(document.title).toLowerCase();
+    const headingText = normalizeText(document.querySelector("h1")?.innerText).toLowerCase();
+    const combinedText = [titleText, headingText, normalizedText].filter(Boolean).join(" ");
+
+    return APPLICATION_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(combinedText));
   }
 
   function clearModalTimer() {
@@ -274,6 +310,10 @@
 
   function checkForApplication() {
     if (!document.body || hasDetected) {
+      return;
+    }
+
+    if (isBlockedPage()) {
       return;
     }
 
