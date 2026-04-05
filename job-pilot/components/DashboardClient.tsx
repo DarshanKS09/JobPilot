@@ -45,20 +45,23 @@ export function DashboardClient() {
     [router],
   );
 
-  const loadJobs = useCallback(async (activeToken: string) => {
-    setError("");
+  const loadJobs = useCallback(
+    async (activeToken: string) => {
+      setError("");
 
-    try {
-      const data = await apiRequest<JobsResponse>("/api/jobs", {
-        token: activeToken,
-      });
-      setJobs(data.jobs);
-    } catch (loadError) {
-      handleProtectedError(loadError);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [handleProtectedError]);
+      try {
+        const data = await apiRequest<JobsResponse>("/api/jobs", {
+          token: activeToken,
+        });
+        setJobs(data.jobs);
+      } catch (loadError) {
+        handleProtectedError(loadError);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [handleProtectedError],
+  );
 
   useEffect(() => {
     const storedToken = getStoredToken();
@@ -77,8 +80,10 @@ export function DashboardClient() {
       return;
     }
 
+    const activeToken = token;
+
     function refreshJobs() {
-      void loadJobs(token);
+      void loadJobs(activeToken);
     }
 
     const pollTimer = window.setInterval(refreshJobs, DASHBOARD_REFRESH_INTERVAL_MS);
@@ -243,76 +248,122 @@ export function DashboardClient() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <div className="mb-8 flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900">
-              JobPilot Dashboard
-            </h1>
-            <p className="text-sm text-zinc-600">
-              Track applications, update statuses, and manage jobs in one place.
-            </p>
-          </div>
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="rounded-[32px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] backdrop-blur sm:p-6">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-[28px] bg-stone-950 p-6 text-white sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-orange-200">
+                Application command center
+              </p>
+              <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h1 className="font-['var(--font-space-grotesk)'] text-3xl font-bold tracking-tight sm:text-4xl">
+                    JobPilot Dashboard
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-300">
+                    Track submissions, manage follow-ups, and keep your career
+                    search organized across every stage.
+                  </p>
+                </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            suppressHydrationWarning
-            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100"
-          >
-            Logout
-          </button>
-        </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  suppressHydrationWarning
+                  className="rounded-full border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+                >
+                  Logout
+                </button>
+              </div>
 
-        <div className="space-y-6">
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  Extension Access
-                </h2>
-                <p className="text-sm text-zinc-600">
-                  Copy your JWT token into the JobPilot extension to enable saves.
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl bg-white/6 p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-stone-400">
+                    Total jobs
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold">{jobs.length}</p>
+                </div>
+                <div className="rounded-3xl bg-white/6 p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-stone-400">
+                    Interviews
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {jobs.filter((job) => job.status === "interview").length}
+                  </p>
+                </div>
+                <div className="rounded-3xl bg-white/6 p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-stone-400">
+                    Applied
+                  </p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {jobs.filter((job) => job.status === "applied").length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-stone-200 bg-white/80 p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="font-['var(--font-space-grotesk)'] text-2xl font-semibold text-stone-950">
+                    Extension Access
+                  </h2>
+                  <p className="mt-2 text-sm leading-7 text-stone-600">
+                    Copy your JWT token into the JobPilot extension to enable
+                    browser saves after an application is submitted.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCopyToken()}
+                  suppressHydrationWarning
+                  className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
+                >
+                  Copy Token
+                </button>
+              </div>
+
+              <div className="mt-6 rounded-3xl bg-orange-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-700">
+                  Reminder
+                </p>
+                <p className="mt-3 text-sm leading-7 text-stone-700">
+                  The extension now only reacts to real application submission
+                  confirmations, not inbox or generic job pages.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void handleCopyToken()}
-                suppressHydrationWarning
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
-              >
-                Copy Token
-              </button>
+              {copyMessage ? (
+                <p className="mt-4 text-sm font-medium text-stone-600">{copyMessage}</p>
+              ) : null}
             </div>
-
-            {copyMessage ? (
-              <p className="mt-3 text-sm text-zinc-600">{copyMessage}</p>
-            ) : null}
           </div>
 
-          <JobForm onSubmit={handleAddJob} />
+          <div className="mt-6 space-y-6">
+            <JobForm onSubmit={handleAddJob} />
 
-          {error ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
+            {error ? (
+              <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </p>
+            ) : null}
 
-          {isLoading ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 shadow-sm">
-              Loading jobs...
-            </div>
-          ) : (
-            <JobList
-              jobs={jobs}
-              onStatusChange={handleStatusChange}
-              onEdit={handleEditJob}
-              onDelete={handleDelete}
-              busyJobId={isRefreshing ? busyJobId : busyJobId}
-            />
-          )}
+            {isLoading ? (
+              <div className="rounded-[28px] border border-stone-200 bg-white p-6 text-sm text-stone-600">
+                Loading jobs...
+              </div>
+            ) : (
+              <JobList
+                jobs={jobs}
+                onStatusChange={handleStatusChange}
+                onEdit={handleEditJob}
+                onDelete={handleDelete}
+                busyJobId={isRefreshing ? busyJobId : busyJobId}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "JobPilot",
-  description: "Minimal JobPilot frontend for authentication and job tracking",
+  description: "Track job applications with a focused career dashboard and browser capture flow.",
 };
 
 export default function RootLayout({
