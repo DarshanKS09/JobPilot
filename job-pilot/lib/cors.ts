@@ -22,6 +22,14 @@ function isAllowedOrigin(origin: string | null) {
     return true;
   }
 
+  if (!origin.startsWith("chrome-extension://")) {
+    return false;
+  }
+
+  if (env.chromeExtensionIds.length === 0) {
+    return true;
+  }
+
   return env.chromeExtensionIds.some(
     (extensionId) => origin === `chrome-extension://${extensionId}`,
   );
